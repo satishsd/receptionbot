@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReceptionBot Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #4338ca;
+      --primary-light: #e0e7ff;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --bg: #f9fafb;
+      --card: #ffffff;
+      --radius: 8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    /* ─── Login ─── */
+    #login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    .login-card h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .login-card p.subtitle {
+      color: var(--text-muted);
+      margin-bottom: 28px;
+      font-size: 13px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .form-group input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus { border-color: var(--primary); }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 11px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 4px;
+    }
+
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-primary:disabled { background: #c7d2fe; cursor: not-allowed; }
+
+    #login-error {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    /* ─── Layout ─── */
+    #dashboard {
+      display: none;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: 220px;
+      height: 100vh;
+      background: #1e1b4b;
+      color: #c7d2fe;
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+    }
+
+    .sidebar-brand {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .sidebar-brand h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .sidebar-brand p {
+      font-size: 11px;
+      opacity: 0.6;
+      margin-top: 2px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 12px 0;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 0;
+      transition: background 0.15s;
+      font-size: 13px;
+      font-weight: 500;
+      color: #c7d2fe;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: rgba(255,255,255,0.1); color: #fff; }
+
+    .nav-item .icon { font-size: 16px; }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .btn-logout {
+      background: rgba(255,255,255,0.08);
+      color: #c7d2fe;
+      border: none;
+      border-radius: var(--radius);
+      padding: 8px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.15s;
+    }
+
+    .btn-logout:hover { background: rgba(255,255,255,0.14); color: #fff; }
+
+    .main-content {
+      margin-left: 220px;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ─── Page Header ─── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .page-header h1 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .page-header p {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 2px;
+    }
+
+    /* ─── Stats cards ─── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .stat-card .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stat-card .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      margin-top: 6px;
+      color: var(--primary);
+    }
+
+    .stat-card .stat-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ─── Tables ─── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-header h3 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .refresh-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+
+    .refresh-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      text-align: left;
+      padding: 10px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    .mono {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ─── Badges ─── */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-pending  { background: #fef3c7; color: #92400e; }
+    .badge-confirmed { background: #d1fae5; color: #065f46; }
+    .badge-cancelled { background: #fee2e2; color: #991b1b; }
+    .badge-web      { background: var(--primary-light); color: var(--primary); }
+    .badge-whatsapp { background: #dcfce7; color: #15803d; }
+    .badge-yes      { background: #d1fae5; color: #065f46; }
+    .badge-no       { background: #f3f4f6; color: #6b7280; }
+
+    /* ─── Status select ─── */
+    .status-select {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #fff;
+      outline: none;
+    }
+
+    .status-select:focus { border-color: var(--primary); }
+
+    /* ─── Empty state ─── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 16px;
+      color: var(--text-muted);
+    }
+
+    .empty-state .emoji { font-size: 36px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+
+    /* ─── Loading ─── */
+    .loading {
+      text-align: center;
+      padding: 32px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* ─── Payload modal ─── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-muted);
+      line-height: 1;
+    }
+
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    pre {
+      background: #f8f8f8;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* ─── Webhook info banner ─── */
+    .info-banner {
+      background: var(--primary-light);
+      border: 1px solid #c7d2fe;
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .info-banner strong { color: var(--primary); }
+    .info-banner code {
+      background: rgba(79,70,229,0.12);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: 'SF Mono', monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>🤖 ReceptionBot</h1>
+    <p class="subtitle">Admin Panel — Sign in to continue</p>
+    <div class="form-group">
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="admin" autocomplete="username" />
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <button class="btn-primary" id="login-btn" onclick="login()">Sign In</button>
+    <p id="login-error">Invalid username or password.</p>
+  </div>
+</div>
+
+<!-- ═══════════════ DASHBOARD ═══════════════ -->
+<div id="dashboard">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2>ReceptionBot</h2>
+      <p>Admin Dashboard</p>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="showPage('overview')" id="nav-overview">
+        <span class="icon">📊</span> Overview
+      </button>
+      <button class="nav-item" onclick="showPage('appointments')" id="nav-appointments">
+        <span class="icon">📅</span> Appointments
+      </button>
+      <button class="nav-item" onclick="showPage('sessions')" id="nav-sessions">
+        <span class="icon">💬</span> Sessions
+      </button>
+      <button class="nav-item" onclick="showPage('webhook')" id="nav-webhook">
+        <span class="icon">🔗</span> WhatsApp Webhook
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main-content">
+
+    <!-- Overview page -->
+    <div class="page active" id="page-overview">
+      <div class="page-header">
+        <div>
+          <h1>Overview</h1>
+          <p id="overview-updated">–</p>
+        </div>
+        <button class="refresh-btn" onclick="loadOverview()">↻ Refresh</button>
+      </div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total Appointments</div><div class="stat-value" id="stat-total-appt">–</div></div>
+        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value" id="stat-pending-appt" style="color:#d97706">–</div></div>
+        <div class="stat-card"><div class="stat-label">Confirmed</div><div class="stat-value" id="stat-confirmed-appt" style="color:#059669">–</div></div>
+        <div class="stat-card"><div class="stat-label">Total Sessions</div><div class="stat-value" id="stat-sessions">–</div></div>
+        <div class="stat-card"><div class="stat-label">Total Messages</div><div class="stat-value" id="stat-messages">–</div></div>
+        <div class="stat-card"><div class="stat-label">Webhook Events</div><div class="stat-value" id="stat-webhook">–</div></div>
+      </div>
+    </div>
+
+    <!-- Appointments page -->
+    <div class="page" id="page-appointments">
+      <div class="page-header">
+        <div>
+          <h1>Appointments</h1>
+          <p>All bookings made through the chat bot</p>
+        </div>
+        <button class="refresh-btn" onclick="loadAppointments()">↻ Refresh</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Service</th>
+                <th>Contact</th>
+                <th>Preferred Time</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="appointments-tbody">
+              <tr><td colspan="7"><div class="loading">Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sessions page -->
+    <div class="page" id="page-sessions">
+      <div class="page-header">
+        <div>
+          <h1>Sessions</h1>
+          <p>Active and past chat sessions</p>
+        </div>
+        <button class="refresh-btn" onclick="loadSessions()">↻ Refresh</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Session ID</th>
+                <th>Channel</th>
+                <th>Messages</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="sessions-tbody">
+              <tr><td colspan="4"><div class="loading">Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Webhook page -->
+    <div class="page" id="page-webhook">
+      <div class="page-header">
+        <div>
+          <h1>WhatsApp Webhook</h1>
+          <p>Incoming events from WhatsApp Cloud API</p>
+        </div>
+        <button class="refresh-btn" onclick="loadWebhookEvents()">↻ Refresh</button>
+      </div>
+
+      <div class="info-banner">
+        <strong>How to configure your WhatsApp webhook:</strong><br/>
+        1. Go to <strong>Meta Developer Console</strong> → Your App → WhatsApp → Configuration<br/>
+        2. Set <strong>Callback URL</strong> to: <code id="webhook-url">https://your-domain.com/api/webhook/whatsapp</code><br/>
+        3. Set <strong>Verify Token</strong> to the value of <code>WHATSAPP_VERIFY_TOKEN</code> in your <code>.env</code><br/>
+        4. Subscribe to the <strong>messages</strong> webhook field<br/>
+        5. Click <strong>Verify and Save</strong>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Source</th>
+                <th>Event Type</th>
+                <th>Processed</th>
+                <th>Received At</th>
+                <th>Payload</th>
+              </tr>
+            </thead>
+            <tbody id="webhook-tbody">
+              <tr><td colspan="6"><div class="loading">Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Payload modal -->
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      Webhook Payload
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <pre id="modal-payload"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+  const TOKEN_KEY = 'rb_admin_token';
+  let adminToken = sessionStorage.getItem(TOKEN_KEY);
+
+  // ── auth ──────────────────────────────────────────────
+  async function login() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const btn = document.getElementById('login-btn');
+    const err = document.getElementById('login-error');
+
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+    err.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+
+      adminToken = data.token;
+      sessionStorage.setItem(TOKEN_KEY, adminToken);
+      showDashboard();
+    } catch {
+      err.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem(TOKEN_KEY);
+    adminToken = null;
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+
+  function authHeaders() {
+    return { 'Content-Type': 'application/json', Authorization: 'Bearer ' + adminToken };
+  }
+
+  async function apiFetch(path) {
+    const res = await fetch(path, { headers: authHeaders() });
+    if (res.status === 401) { logout(); return null; }
+    return res.json();
+  }
+
+  // ── init ──────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') login();
+    });
+
+    // Update webhook URL display
+    document.getElementById('webhook-url').textContent = location.origin + '/api/webhook/whatsapp';
+
+    if (adminToken) {
+      showDashboard();
+    }
+  });
+
+  function showDashboard() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadOverview();
+  }
+
+  // ── navigation ────────────────────────────────────────
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    document.getElementById('nav-' + name).classList.add('active');
+
+    if (name === 'appointments') loadAppointments();
+    else if (name === 'sessions') loadSessions();
+    else if (name === 'webhook') loadWebhookEvents();
+    else if (name === 'overview') loadOverview();
+  }
+
+  // ── overview ──────────────────────────────────────────
+  async function loadOverview() {
+    const data = await apiFetch('/api/admin/stats');
+    if (!data) return;
+    document.getElementById('stat-total-appt').textContent = data.appointments.total;
+    document.getElementById('stat-pending-appt').textContent = data.appointments.pending;
+    document.getElementById('stat-confirmed-appt').textContent = data.appointments.confirmed;
+    document.getElementById('stat-sessions').textContent = data.sessions;
+    document.getElementById('stat-messages').textContent = data.messages;
+    document.getElementById('stat-webhook').textContent = data.webhookEvents;
+    document.getElementById('overview-updated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+  }
+
+  // ── appointments ──────────────────────────────────────
+  async function loadAppointments() {
+    const tbody = document.getElementById('appointments-tbody');
+    tbody.innerHTML = '<tr><td colspan="7"><div class="loading">Loading…</div></td></tr>';
+    const data = await apiFetch('/api/admin/appointments');
+    if (!data) return;
+
+    if (!data.appointments.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="emoji">📅</div><p>No appointments yet</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.appointments.map(a => `
+      <tr>
+        <td class="mono">${a.id.slice(0, 8)}…</td>
+        <td>${esc(a.name)}</td>
+        <td>${esc(a.service)}</td>
+        <td>${esc(a.email || a.phone || '–')}</td>
+        <td>${a.preferredAt ? new Date(a.preferredAt).toLocaleString() : '–'}</td>
+        <td>
+          <select class="status-select" onchange="updateStatus('${a.id}', this.value)">
+            <option value="PENDING"    ${a.status === 'PENDING'    ? 'selected' : ''}>Pending</option>
+            <option value="CONFIRMED"  ${a.status === 'CONFIRMED'  ? 'selected' : ''}>Confirmed</option>
+            <option value="CANCELLED"  ${a.status === 'CANCELLED'  ? 'selected' : ''}>Cancelled</option>
+          </select>
+        </td>
+        <td>${new Date(a.createdAt).toLocaleString()}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function updateStatus(id, status) {
+    await fetch('/api/admin/appointments/' + id, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  // ── sessions ──────────────────────────────────────────
+  async function loadSessions() {
+    const tbody = document.getElementById('sessions-tbody');
+    tbody.innerHTML = '<tr><td colspan="4"><div class="loading">Loading…</div></td></tr>';
+    const data = await apiFetch('/api/admin/sessions');
+    if (!data) return;
+
+    if (!data.sessions.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="emoji">💬</div><p>No sessions yet</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.sessions.map(s => `
+      <tr>
+        <td class="mono">${s.id.slice(0, 8)}…</td>
+        <td><span class="badge badge-${s.channel === 'whatsapp' ? 'whatsapp' : 'web'}">${esc(s.channel)}</span></td>
+        <td>${s._count ? s._count.messages : '–'}</td>
+        <td>${new Date(s.createdAt).toLocaleString()}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ── webhook events ────────────────────────────────────
+  async function loadWebhookEvents() {
+    const tbody = document.getElementById('webhook-tbody');
+    tbody.innerHTML = '<tr><td colspan="6"><div class="loading">Loading…</div></td></tr>';
+    const data = await apiFetch('/api/admin/webhook-events');
+    if (!data) return;
+
+    if (!data.events.length) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="emoji">🔗</div><p>No webhook events received yet.<br/>Configure your WhatsApp webhook above.</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.events.map(e => `
+      <tr>
+        <td class="mono">${e.id.slice(0, 8)}…</td>
+        <td>${esc(e.source)}</td>
+        <td>${esc(e.eventType)}</td>
+        <td><span class="badge ${e.processed ? 'badge-yes' : 'badge-no'}">${e.processed ? 'Yes' : 'No'}</span></td>
+        <td>${new Date(e.createdAt).toLocaleString()}</td>
+        <td><button class="refresh-btn" onclick="showPayload(${JSON.stringify(JSON.stringify(e.payload))})">View</button></td>
+      </tr>
+    `).join('');
+  }
+
+  // ── modal ─────────────────────────────────────────────
+  function showPayload(json) {
+    document.getElementById('modal-payload').textContent = JSON.stringify(JSON.parse(json), null, 2);
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function closeModal(e) {
+    if (!e || e.target === document.getElementById('modal-overlay')) {
+      document.getElementById('modal-overlay').classList.remove('open');
+    }
+  }
+
+  // ── utils ─────────────────────────────────────────────
+  function esc(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>

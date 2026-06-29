@@ -20,4 +20,8 @@ export const messageRepository = {
       orderBy: { createdAt: 'asc' },
     });
   },
+
+  async countAll() {
+    return prisma.message.count();
+  },
 };

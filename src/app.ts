@@ -3,6 +3,8 @@ import cors from 'cors';
 import path from 'path';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import chatRoutes from './channels/web/chatRoutes';
+import adminRoutes from './channels/admin/adminRoutes';
+import whatsappWebhookRoutes from './channels/whatsapp/webhookRoutes';
 
 const app = express();
 
@@ -18,6 +20,8 @@ app.get('/health', (_req, res) => {
 
 // Routes
 app.use('/api/chat', chatRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/webhook/whatsapp', whatsappWebhookRoutes);
 
 // Serve static frontend (must come after API routes)
 app.use(express.static(path.join(process.cwd(), 'public')));

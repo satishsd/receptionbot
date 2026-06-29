@@ -51,6 +51,17 @@ model Appointment {
   @@map("appointments")
 }
 
+model WebhookEvent {
+  id        String   @id @default(uuid())
+  source    String
+  eventType String
+  payload   Json
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("webhook_events")
+}
+
 enum Role {
   USER
   BOT
