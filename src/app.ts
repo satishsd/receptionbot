@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import chatRoutes from './channels/web/chatRoutes';
 
@@ -17,6 +18,9 @@ app.get('/health', (_req, res) => {
 
 // Routes
 app.use('/api/chat', chatRoutes);
+
+// Serve static frontend (must come after API routes)
+app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Error handlers (must be last)
 app.use(notFoundHandler);

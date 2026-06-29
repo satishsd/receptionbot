@@ -139,7 +139,11 @@ function resolveService(input: string): string | null {
 }
 
 function isEmail(text: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text);
+  if (text.length > 254 || text.includes(' ')) return false;
+  const parts = text.split('@');
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts as [string, string];
+  return local.length > 0 && domain.includes('.') && domain.length >= 4;
 }
 
 function isPhone(text: string): boolean {
