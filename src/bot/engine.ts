@@ -75,15 +75,29 @@ export async function processMessage(
 
 /**
  * Advance the appointment booking step machine after the handler has returned a response.
- * The handler reads `session.state.step` to decide what to do, then this function
- * moves the step forward for the *next* user turn.
+ *
+ * Flow: The handler reads `session.state.step` to decide what prompt to show the user,
+ * then THIS function moves the step forward for the *next* user turn.
+ *
+ * Step sequence (what the bot asks at each step):
+ *   undefined  → handler shows "start/ask_name" prompt, advance to ask_service
+ *   ask_name   → handler shows "ask_name" prompt,  advance to ask_service
+ *   ask_service → handler collects name, shows service menu, advance to ask_contact
+ *   ask_contact → handler collects service, asks for email/phone, advance to ask_datetime
+ *   ask_datetime → handler collects contact, asks preferred time, advance to confirm
+ *   confirm     → handler collects datetime, shows summary + yes/no, advance to done
+ *   done        → handler processes confirmation/cancellation, clears state
+ *
+ * When step is undefined: the handler just showed the initial "ask_name" prompt,
+ * so we move to ask_service (ready to receive the name on the next turn).
  */
 function advanceBookingStep(session: ConversationSession): void {
   const stepOrder = ['ask_name', 'ask_service', 'ask_contact', 'ask_datetime', 'confirm', 'done'];
   const current = session.state.step;
 
   if (!current) {
-    session.state.step = 'ask_service'; // after the initial "ask_name" response
+    // Handler just showed the initial ask_name prompt; next turn collects the name
+    session.state.step = 'ask_service';
     return;
   }
 

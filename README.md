@@ -127,7 +127,7 @@ cp .env.example .env
 Edit `.env` and set your `DATABASE_URL`:
 
 ```env
-DATABASE_URL="******localhost:5432/receptionbot?schema=public"
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/receptionbot?schema=public"
 PORT=3000
 NODE_ENV=development
 ```

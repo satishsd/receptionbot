@@ -127,8 +127,9 @@ function resolveService(input: string): string | null {
   const lower = input.toLowerCase();
   // Check by number
   const num = parseInt(input, 10);
-  if (num >= 1 && num <= SERVICES.length) {
-    return SERVICES[num - 1] ?? null;
+  if (!isNaN(num) && num >= 1 && num <= SERVICES.length) {
+    const service = SERVICES[num - 1];
+    return service !== undefined ? service : null;
   }
   // Check by name match
   const match = SERVICES.find(
@@ -142,7 +143,8 @@ function isEmail(text: string): boolean {
 }
 
 function isPhone(text: string): boolean {
-  return /^[\d\s\+\-\(\)]{7,15}$/.test(text);
+  // Match digits, spaces, +, -, (, ) with total length 7-15
+  return /^\+?[\d][\d\s\-().]{5,14}$/.test(text);
 }
 
 function buildConfirmationMessage(draft: Partial<AppointmentDraft>): BotMessage {
