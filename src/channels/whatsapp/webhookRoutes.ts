@@ -9,24 +9,24 @@ import { Prisma } from '@prisma/client';
 
 const router = Router();
 
-/**
- * In-memory map of WhatsApp phone number → session ID.
- * Re-hydrated from DB on cache miss.
- */
+/** In-memory map of WhatsApp phone number → session ID. Re-hydrated from DB on cache miss. */
 const phoneSessionMap = new Map<string, string>();
+
+/** Strip all non-digit/non-plus characters to prevent injection via phone field. */
+function sanitizePhone(raw: string): string {
+  return raw.replace(/[^0-9+]/g, '');
+}
 
 async function getOrCreateWhatsAppSession(phone: string): Promise<string> {
   const cached = phoneSessionMap.get(phone);
   if (cached) return cached;
 
-  // Try to find an existing session in DB
   const existing = await sessionRepository.findWhatsAppSessionByPhone(phone);
   if (existing) {
     phoneSessionMap.set(phone, existing.id);
     return existing.id;
   }
 
-  // Create a new session for this WhatsApp user
   const session = await sessionStore.create('whatsapp');
   await sessionRepository.update(session.id, { metadata: { phone } as Prisma.InputJsonValue });
   phoneSessionMap.set(phone, session.id);
@@ -42,9 +42,15 @@ router.get('/', (req: Request, res: Response) => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  if (mode === 'subscribe' && token === config.whatsappVerifyToken) {
+  if (
+    mode === 'subscribe' &&
+    token === config.whatsappVerifyToken &&
+    typeof challenge === 'string' &&
+    /^[0-9]+$/.test(challenge)
+  ) {
     console.log('[WhatsApp] Webhook verified');
-    res.status(200).send(challenge);
+    // Send only the numeric challenge string – validated above to be digits only
+    res.status(200).type('text/plain').send(challenge);
   } else {
     console.warn('[WhatsApp] Webhook verification failed');
     res.status(403).json({ error: 'Forbidden' });
@@ -65,8 +71,12 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   if (body['object'] !== 'whatsapp_business_account') return;
 
   try {
-    // Persist raw webhook event for audit/debugging
-    await webhookEventRepository.create('whatsapp', 'incoming', body as Prisma.InputJsonValue);
+    // Persist raw webhook event for audit/debugging – capture the created ID
+    const webhookEvent = await webhookEventRepository.create(
+      'whatsapp',
+      'incoming',
+      body as Prisma.InputJsonValue,
+    );
 
     const entries = (body['entry'] as Record<string, unknown>[]) ?? [];
     for (const entry of entries) {
@@ -77,36 +87,31 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
         const messages = (value['messages'] as Record<string, unknown>[]) ?? [];
         for (const msg of messages) {
-          if (msg['type'] !== 'text') continue; // ignore non-text for now
+          if (msg['type'] !== 'text') continue;
 
-          const phone = msg['from'] as string;
+          const rawPhone = msg['from'] as string;
           const messageId = msg['id'] as string;
           const userText = ((msg['text'] as Record<string, unknown>)?.['body'] as string) ?? '';
 
+          const phone = sanitizePhone(rawPhone);
           if (!phone || !userText.trim()) continue;
 
-          // Mark message as read
           await markMessageRead(messageId);
 
-          // Get or create session for this phone number
           const sessionId = await getOrCreateWhatsAppSession(phone);
           const session = await sessionStore.get(sessionId);
           if (!session) continue;
 
-          // Process through the bot engine
           const botResponse = await processMessage(session, userText.trim());
           await sessionStore.save(session);
 
-          // Reply via WhatsApp
           await sendWhatsAppMessage(phone, botResponse.message.text);
-
-          // Mark event as processed
-          await webhookEventRepository
-            .markProcessed((await webhookEventRepository.findAll(1))[0]?.id ?? '')
-            .catch(() => undefined);
         }
       }
     }
+
+    // Mark the persisted event as processed once all messages are handled
+    await webhookEventRepository.markProcessed(webhookEvent.id).catch(() => undefined);
   } catch (err) {
     next(err);
   }

@@ -10,7 +10,7 @@ function bearerToken(): string {
  * Send a plain text message via WhatsApp Cloud API.
  */
 export async function sendWhatsAppMessage(to: string, text: string): Promise<void> {
-  const url = GRAPH_API_BASE + '/' + config.whatsappPhoneNumberId + '/messages';
+  const url = `${GRAPH_API_BASE}/${config.whatsappPhoneNumberId}/messages`;
 
   const body = {
     messaging_product: 'whatsapp',
@@ -31,7 +31,7 @@ export async function sendWhatsAppMessage(to: string, text: string): Promise<voi
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error('WhatsApp API error (' + response.status + '): ' + errorText);
+    throw new Error(`WhatsApp API error (${response.status}): ${errorText}`);
   }
 }
 
@@ -39,7 +39,7 @@ export async function sendWhatsAppMessage(to: string, text: string): Promise<voi
  * Mark an incoming message as read.
  */
 export async function markMessageRead(messageId: string): Promise<void> {
-  const url = GRAPH_API_BASE + '/' + config.whatsappPhoneNumberId + '/messages';
+  const url = `${GRAPH_API_BASE}/${config.whatsappPhoneNumberId}/messages`;
 
   await fetch(url, {
     method: 'POST',

@@ -683,6 +683,10 @@
   async function apiFetch(path) {
     const res = await fetch(path, { headers: authHeaders() });
     if (res.status === 401) { logout(); return null; }
+    if (!res.ok) {
+      console.error('Admin API error', res.status, path);
+      return null;
+    }
     return res.json();
   }
 
@@ -812,14 +816,19 @@
         <td>${esc(e.eventType)}</td>
         <td><span class="badge ${e.processed ? 'badge-yes' : 'badge-no'}">${e.processed ? 'Yes' : 'No'}</span></td>
         <td>${new Date(e.createdAt).toLocaleString()}</td>
-        <td><button class="refresh-btn" onclick="showPayload(${JSON.stringify(JSON.stringify(e.payload))})">View</button></td>
+        <td><button class="refresh-btn" data-payload="${esc(JSON.stringify(e.payload))}" onclick="showPayload(this)">View</button></td>
       </tr>
     `).join('');
   }
 
   // ── modal ─────────────────────────────────────────────
-  function showPayload(json) {
-    document.getElementById('modal-payload').textContent = JSON.stringify(JSON.parse(json), null, 2);
+  function showPayload(btn) {
+    const raw = btn.getAttribute('data-payload') || '{}';
+    try {
+      document.getElementById('modal-payload').textContent = JSON.stringify(JSON.parse(raw), null, 2);
+    } catch {
+      document.getElementById('modal-payload').textContent = raw;
+    }
     document.getElementById('modal-overlay').classList.add('open');
   }
 
