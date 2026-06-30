@@ -72,3 +72,47 @@ enum AppointmentStatus {
   CONFIRMED
   CANCELLED
 }
+
+// ─── Real-estate agent portal ─────────────────────────────────────────────
+
+model Agent {
+  id                    String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String
+  whatsappPhoneNumberId String?    @unique @map("whatsapp_phone_number_id")
+  metaAccessToken       String?    @map("meta_access_token")
+  passwordHash          String?    @map("password_hash")
+  createdAt             DateTime   @default(now()) @map("created_at")
+  properties            Property[]
+  leads                 Lead[]
+
+  @@map("agents")
+}
+
+model Property {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agentId   String?  @map("agent_id") @db.Uuid
+  title     String
+  intent    String?
+  sizeSqft  Decimal  @map("size_sqft")
+  price     Decimal
+  area      String
+  imageUrl  String?  @map("image_url")
+  pdfUrl    String?  @map("pdf_url")
+  isListed  Boolean  @default(true) @map("is_listed")
+  createdAt DateTime @default(now()) @map("created_at")
+  agent     Agent?   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("properties")
+}
+
+model Lead {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agentId           String?  @map("agent_id") @db.Uuid
+  customerPhone     String   @map("customer_phone")
+  searchPreferences Json     @default("{}") @map("search_preferences")
+  lastInteraction   DateTime @default(now()) @map("last_interaction")
+  agent             Agent?   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, customerPhone])
+  @@map("leads")
+}

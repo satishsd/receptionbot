@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReceptionBot — Agent Portal</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #4338ca;
+      --primary-light: #e0e7ff;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --bg: #f9fafb;
+      --card: #ffffff;
+      --radius: 8px;
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+    /* ─── Login ─── */
+    #login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 40px; width: 100%; max-width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .login-card h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .login-card p.subtitle { color: var(--text-muted); margin-bottom: 28px; font-size: 13px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-weight: 500; margin-bottom: 6px; font-size: 13px; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; font-size: 14px; outline: none; transition: border-color 0.2s; background: #fff; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); }
+    .form-group textarea { resize: vertical; min-height: 72px; }
+    .btn-primary { width: 100%; background: var(--primary); color: #fff; border: none; border-radius: var(--radius); padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-top: 4px; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-primary:disabled { background: #c7d2fe; cursor: not-allowed; }
+    .error-msg { color: var(--danger); font-size: 13px; margin-top: 12px; display: none; }
+
+    /* ─── Layout ─── */
+    #dashboard { display: none; }
+    .sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: #1e1b4b; color: #c7d2fe; display: flex; flex-direction: column; z-index: 10; }
+    .sidebar-brand { padding: 20px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .sidebar-brand h2 { font-size: 16px; font-weight: 700; color: #fff; }
+    .sidebar-brand p { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+    .sidebar-agent { padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 13px; }
+    .sidebar-agent .agent-label { font-size: 11px; opacity: 0.5; margin-bottom: 3px; }
+    .sidebar-agent .agent-name { color: #fff; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sidebar-nav { flex: 1; padding: 12px 0; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; font-size: 13px; font-weight: 500; color: #c7d2fe; border: none; background: none; width: 100%; text-align: left; transition: background 0.15s; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: rgba(255,255,255,0.1); color: #fff; }
+    .nav-item .icon { font-size: 16px; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .btn-logout { background: rgba(255,255,255,0.08); color: #c7d2fe; border: none; border-radius: var(--radius); padding: 8px 14px; font-size: 12px; cursor: pointer; width: 100%; transition: background 0.15s; }
+    .btn-logout:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .main-content { margin-left: 220px; padding: 24px; min-height: 100vh; }
+
+    /* ─── Pages ─── */
+    .page { display: none; }
+    .page.active { display: block; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .page-header h1 { font-size: 20px; font-weight: 700; }
+    .page-header p { color: var(--text-muted); font-size: 13px; margin-top: 2px; }
+
+    /* ─── Stats ─── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .stat-card .stat-label { font-size: 12px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-card .stat-value { font-size: 28px; font-weight: 700; margin-top: 6px; color: var(--primary); }
+    .stat-card .stat-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ─── Card / Table ─── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-header h3 { font-size: 15px; font-weight: 600; }
+    .btn-add { background: var(--primary); color: #fff; border: none; border-radius: var(--radius); padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .btn-add:hover { background: var(--primary-dark); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 10px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); background: var(--bg); border-bottom: 1px solid var(--border); }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+    .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: var(--text-muted); }
+    .empty-state { text-align: center; padding: 48px 16px; color: var(--text-muted); }
+    .empty-state .emoji { font-size: 36px; margin-bottom: 12px; }
+    .loading { text-align: center; padding: 32px; color: var(--text-muted); font-size: 13px; }
+    .refresh-btn { background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 12px; font-size: 12px; cursor: pointer; color: var(--text-muted); transition: all 0.15s; }
+    .refresh-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ─── Badges ─── */
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge-listed { background: #d1fae5; color: #065f46; }
+    .badge-delisted { background: #f3f4f6; color: #6b7280; }
+    .badge-rent { background: #dbeafe; color: #1e40af; }
+    .badge-buy { background: #fef3c7; color: #92400e; }
+
+    /* ─── Action buttons ─── */
+    .btn-action { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; transition: all 0.15s; margin-right: 4px; color: var(--text-muted); }
+    .btn-action:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-action.danger { border-color: #fca5a5; color: var(--danger); }
+    .btn-action.danger:hover { background: #fee2e2; }
+    .btn-action.success { border-color: #6ee7b7; color: var(--success); }
+    .btn-action.success:hover { background: #d1fae5; }
+
+    /* ─── Search prefs chip ─── */
+    .pref-chip { display: inline-block; background: var(--primary-light); color: var(--primary); border-radius: 999px; padding: 2px 8px; font-size: 11px; margin: 2px; }
+
+    /* ─── Modal ─── */
+    #modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+    #modal-overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 12px; width: 100%; max-width: 520px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 15px; flex-shrink: 0; }
+    .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); line-height: 1; }
+    .modal-body { padding: 20px; overflow-y: auto; }
+    .modal-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; flex-shrink: 0; }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-secondary:hover { border-color: #9ca3af; }
+    .modal-footer .btn-primary { width: auto; margin-top: 0; padding: 9px 22px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>🏠 Agent Portal</h1>
+    <p class="subtitle">ReceptionBot — Sign in to manage your listings</p>
+    <div class="form-group">
+      <label for="agent-name">Agent Name</label>
+      <input type="text" id="agent-name" placeholder="Your name" autocomplete="username" />
+    </div>
+    <div class="form-group">
+      <label for="agent-password">Password</label>
+      <input type="password" id="agent-password" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">Sign In</button>
+    <p class="error-msg" id="login-error"></p>
+  </div>
+</div>
+
+<!-- ═══════════════ DASHBOARD ═══════════════ -->
+<div id="dashboard">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2>ReceptionBot</h2>
+      <p>Agent Portal</p>
+    </div>
+    <div class="sidebar-agent">
+      <div class="agent-label">Logged in as</div>
+      <div class="agent-name" id="sidebar-agent-name">–</div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="showPage('properties')" id="nav-properties">
+        <span class="icon">🏠</span> Properties
+      </button>
+      <button class="nav-item" onclick="showPage('leads')" id="nav-leads">
+        <span class="icon">👥</span> Leads &amp; Insights
+      </button>
+      <button class="nav-item" onclick="showPage('overview')" id="nav-overview">
+        <span class="icon">📊</span> Business Overview
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="doLogout()">Sign Out</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <!-- ─── Properties page ─── -->
+    <div class="page active" id="page-properties">
+      <div class="page-header">
+        <div>
+          <h1>My Properties</h1>
+          <p>List and manage your property listings</p>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="refresh-btn" onclick="loadProperties()">↻ Refresh</button>
+          <button class="btn-add" onclick="openAddPropertyModal()">+ Add Property</button>
+        </div>
+      </div>
+      <div class="stats-grid" id="prop-stats-grid" style="display:none;">
+        <div class="stat-card">
+          <div class="stat-label">Total</div>
+          <div class="stat-value" id="ps-total">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Listed</div>
+          <div class="stat-value" id="ps-listed" style="color:#059669">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Delisted</div>
+          <div class="stat-value" id="ps-delisted" style="color:#6b7280">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">For Rent</div>
+          <div class="stat-value" id="ps-rent" style="color:#2563eb">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">For Sale</div>
+          <div class="stat-value" id="ps-buy" style="color:#d97706">–</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Area</th>
+                <th>Size (sqft)</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="properties-tbody">
+              <tr><td colspan="7"><div class="loading">Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Leads page ─── -->
+    <div class="page" id="page-leads">
+      <div class="page-header">
+        <div>
+          <h1>Leads &amp; Insights</h1>
+          <p>Customers who interacted with your WhatsApp bot</p>
+        </div>
+        <button class="refresh-btn" onclick="loadLeads()">↻ Refresh</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Leads</div>
+          <div class="stat-value" id="stat-leads-total">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">This Week</div>
+          <div class="stat-value" id="stat-leads-week" style="color:#059669">–</div>
+          <div class="stat-sub">Last 7 days</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">This Month</div>
+          <div class="stat-value" id="stat-leads-month" style="color:#d97706">–</div>
+          <div class="stat-sub">Last 30 days</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>All Leads</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Phone</th>
+                <th>Search Preferences</th>
+                <th>Last Interaction</th>
+              </tr>
+            </thead>
+            <tbody id="leads-tbody">
+              <tr><td colspan="3"><div class="loading">Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Business Overview page ─── -->
+    <div class="page" id="page-overview">
+      <div class="page-header">
+        <div>
+          <h1>Business Overview</h1>
+          <p>Your property portfolio and bot performance at a glance</p>
+        </div>
+        <button class="refresh-btn" onclick="loadOverview()">↻ Refresh</button>
+      </div>
+
+      <h2 style="font-size:14px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">Properties</h2>
+      <div class="stats-grid" style="margin-bottom:32px;">
+        <div class="stat-card">
+          <div class="stat-label">Total Listings</div>
+          <div class="stat-value" id="ov-prop-total">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active (Listed)</div>
+          <div class="stat-value" id="ov-prop-listed" style="color:#059669">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Inactive (Delisted)</div>
+          <div class="stat-value" id="ov-prop-delisted" style="color:#6b7280">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">For Rent</div>
+          <div class="stat-value" id="ov-prop-rent" style="color:#2563eb">–</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">For Sale</div>
+          <div class="stat-value" id="ov-prop-buy" style="color:#d97706">–</div>
+        </div>
+      </div>
+
+      <h2 style="font-size:14px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;">Bot Performance</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Leads</div>
+          <div class="stat-value" id="ov-leads-total">–</div>
+          <div class="stat-sub">All time</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">New This Week</div>
+          <div class="stat-value" id="ov-leads-week" style="color:#059669">–</div>
+          <div class="stat-sub">Last 7 days</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">New This Month</div>
+          <div class="stat-value" id="ov-leads-month" style="color:#d97706">–</div>
+          <div class="stat-sub">Last 30 days</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ═══════════════ ADD / EDIT PROPERTY MODAL ═══════════════ -->
+<div id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modal-title">Add Property</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <form id="property-form" onsubmit="submitProperty(event)">
+      <div class="modal-body">
+        <input type="hidden" id="edit-id" />
+        <div class="form-group">
+          <label for="f-title">Title *</label>
+          <input type="text" id="f-title" placeholder="e.g. 3 BHK Apartment in Whitefield" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="f-intent">Type *</label>
+            <select id="f-intent" required>
+              <option value="">Select…</option>
+              <option value="rent">For Rent</option>
+              <option value="buy">For Sale</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="f-area">Area / Location *</label>
+            <input type="text" id="f-area" placeholder="e.g. Koramangala" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="f-size">Size (sqft) *</label>
+            <input type="number" id="f-size" placeholder="e.g. 1200" min="0" step="0.01" required />
+          </div>
+          <div class="form-group">
+            <label for="f-price">Price *</label>
+            <input type="number" id="f-price" placeholder="e.g. 5000000" min="0" step="0.01" required />
+            <p class="hint">Monthly rent or sale price</p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="f-image">Image URL</label>
+          <input type="url" id="f-image" placeholder="https://…" />
+        </div>
+        <div class="form-group">
+          <label for="f-pdf">Brochure / PDF URL</label>
+          <input type="url" id="f-pdf" placeholder="https://…" />
+        </div>
+        <p class="error-msg" id="modal-error"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn-primary" id="submit-btn">Save Property</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let token = localStorage.getItem('ap_token');
+  let currentAgent = null;
+
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('agent-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+    if (token) restoreSession();
+  });
+
+  async function restoreSession() {
+    try {
+      const data = await api('GET', '/api/agent/me');
+      if (!data || !data.agent) { doLogout(); return; }
+      currentAgent = data.agent;
+      document.getElementById('sidebar-agent-name').textContent = currentAgent.name;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      loadProperties();
+    } catch { doLogout(); }
+  }
+
+  async function doLogin() {
+    const name = document.getElementById('agent-name').value.trim();
+    const password = document.getElementById('agent-password').value;
+    const errEl = document.getElementById('login-error');
+    const btn = document.getElementById('login-btn');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    try {
+      const r = await fetch('/api/agent/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, password }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Login failed');
+      token = data.token;
+      currentAgent = data.agent;
+      localStorage.setItem('ap_token', token);
+      document.getElementById('sidebar-agent-name').textContent = currentAgent.name;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      loadProperties();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function doLogout() {
+    localStorage.removeItem('ap_token');
+    token = null; currentAgent = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('dashboard').style.display = 'none';
+  }
+
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    document.getElementById('nav-' + name).classList.add('active');
+    if (name === 'leads') loadLeads();
+    if (name === 'overview') loadOverview();
+  }
+
+  async function api(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token } };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(path, opts);
+    if (r.status === 401) { doLogout(); return null; }
+    return r.json();
+  }
+
+  // ─── Properties ───────────────────────────────────────────────────────────
+
+  async function loadProperties() {
+    const tbody = document.getElementById('properties-tbody');
+    tbody.innerHTML = '<tr><td colspan="7"><div class="loading">Loading…</div></td></tr>';
+    const data = await api('GET', '/api/agent/properties');
+    if (!data) return;
+
+    const props = data.properties;
+    const listed = props.filter(p => p.isListed).length;
+    const delisted = props.filter(p => !p.isListed).length;
+    const rent = props.filter(p => p.intent === 'rent').length;
+    const buy = props.filter(p => p.intent === 'buy').length;
+
+    if (props.length > 0) {
+      const sg = document.getElementById('prop-stats-grid');
+      sg.style.display = 'grid';
+      document.getElementById('ps-total').textContent = props.length;
+      document.getElementById('ps-listed').textContent = listed;
+      document.getElementById('ps-delisted').textContent = delisted;
+      document.getElementById('ps-rent').textContent = rent;
+      document.getElementById('ps-buy').textContent = buy;
+    }
+
+    if (!props.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="emoji">🏠</div><p>No properties yet. Click "+ Add Property" to add one.</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = props.map(p => `
+      <tr>
+        <td><strong>${esc(p.title)}</strong></td>
+        <td>${p.intent ? '<span class="badge badge-' + p.intent + '">' + (p.intent === 'rent' ? 'Rent' : 'Buy') + '</span>' : '–'}</td>
+        <td>${esc(p.area)}</td>
+        <td class="mono">${Number(p.sizeSqft).toLocaleString()}</td>
+        <td class="mono">₹${Number(p.price).toLocaleString()}</td>
+        <td>
+          <span class="badge ${p.isListed ? 'badge-listed' : 'badge-delisted'}">${p.isListed ? 'Listed' : 'Delisted'}</span>
+        </td>
+        <td>
+          <button class="btn-action ${p.isListed ? 'danger' : 'success'}"
+            onclick="toggleListed(${JSON.stringify(p.id)}, ${p.isListed})">
+            ${p.isListed ? 'Delist' : 'List'}
+          </button>
+          <button class="btn-action" onclick="openEditModal(${JSON.stringify(p)})">Edit</button>
+          <button class="btn-action danger" onclick="deleteProperty(${JSON.stringify(p.id)}, ${JSON.stringify(p.title)})">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function toggleListed(id, currentlyListed) {
+    await api('PATCH', '/api/agent/properties/' + id, { isListed: !currentlyListed });
+    loadProperties();
+  }
+
+  async function deleteProperty(id, title) {
+    if (!confirm('Delete property "' + title + '"? This cannot be undone.')) return;
+    await api('DELETE', '/api/agent/properties/' + id);
+    loadProperties();
+  }
+
+  // ─── Leads ────────────────────────────────────────────────────────────────
+
+  async function loadLeads() {
+    const tbody = document.getElementById('leads-tbody');
+    tbody.innerHTML = '<tr><td colspan="3"><div class="loading">Loading…</div></td></tr>';
+    const [leadsData, statsData] = await Promise.all([
+      api('GET', '/api/agent/leads'),
+      api('GET', '/api/agent/stats'),
+    ]);
+    if (!leadsData || !statsData) return;
+
+    document.getElementById('stat-leads-total').textContent = statsData.leads.total;
+    document.getElementById('stat-leads-week').textContent = statsData.leads.thisWeek;
+    document.getElementById('stat-leads-month').textContent = statsData.leads.thisMonth;
+
+    const leads = leadsData.leads;
+    if (!leads.length) {
+      tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state"><div class="emoji">👥</div><p>No leads yet. Leads appear when customers chat with your WhatsApp bot.</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = leads.map(l => {
+      const prefs = l.searchPreferences || {};
+      const chips = Object.entries(prefs).map(([k, v]) =>
+        `<span class="pref-chip">${esc(k)}: ${esc(String(v))}</span>`
+      ).join('');
+      return `
+        <tr>
+          <td class="mono">${esc(l.customerPhone)}</td>
+          <td>${chips || '<span style="color:var(--text-muted)">–</span>'}</td>
+          <td>${new Date(l.lastInteraction).toLocaleString()}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ─── Business Overview ────────────────────────────────────────────────────
+
+  async function loadOverview() {
+    const data = await api('GET', '/api/agent/stats');
+    if (!data) return;
+    document.getElementById('ov-prop-total').textContent = data.properties.total;
+    document.getElementById('ov-prop-listed').textContent = data.properties.listed;
+    document.getElementById('ov-prop-delisted').textContent = data.properties.delisted;
+    document.getElementById('ov-prop-rent').textContent = data.properties.byIntent.rent;
+    document.getElementById('ov-prop-buy').textContent = data.properties.byIntent.buy;
+    document.getElementById('ov-leads-total').textContent = data.leads.total;
+    document.getElementById('ov-leads-week').textContent = data.leads.thisWeek;
+    document.getElementById('ov-leads-month').textContent = data.leads.thisMonth;
+  }
+
+  // ─── Property Modal ───────────────────────────────────────────────────────
+
+  function openAddPropertyModal() {
+    document.getElementById('modal-title').textContent = 'Add Property';
+    document.getElementById('edit-id').value = '';
+    document.getElementById('property-form').reset();
+    document.getElementById('modal-error').style.display = 'none';
+    document.getElementById('submit-btn').textContent = 'Add Property';
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function openEditModal(prop) {
+    document.getElementById('modal-title').textContent = 'Edit Property';
+    document.getElementById('edit-id').value = prop.id;
+    document.getElementById('f-title').value = prop.title;
+    document.getElementById('f-intent').value = prop.intent || '';
+    document.getElementById('f-area').value = prop.area;
+    document.getElementById('f-size').value = prop.sizeSqft;
+    document.getElementById('f-price').value = prop.price;
+    document.getElementById('f-image').value = prop.imageUrl || '';
+    document.getElementById('f-pdf').value = prop.pdfUrl || '';
+    document.getElementById('modal-error').style.display = 'none';
+    document.getElementById('submit-btn').textContent = 'Save Changes';
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  }
+
+  async function submitProperty(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submit-btn');
+    const errEl = document.getElementById('modal-error');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+
+    const id = document.getElementById('edit-id').value;
+    const body = {
+      title: document.getElementById('f-title').value.trim(),
+      intent: document.getElementById('f-intent').value || undefined,
+      area: document.getElementById('f-area').value.trim(),
+      sizeSqft: parseFloat(document.getElementById('f-size').value),
+      price: parseFloat(document.getElementById('f-price').value),
+      imageUrl: document.getElementById('f-image').value.trim() || undefined,
+      pdfUrl: document.getElementById('f-pdf').value.trim() || undefined,
+    };
+
+    try {
+      const method = id ? 'PATCH' : 'POST';
+      const path = id ? '/api/agent/properties/' + id : '/api/agent/properties';
+      const r = await fetch(path, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Failed to save property');
+      closeModal();
+      loadProperties();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ─── Utils ────────────────────────────────────────────────────────────────
+
+  function esc(str) {
+    return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+</script>
+</body>
+</html>
