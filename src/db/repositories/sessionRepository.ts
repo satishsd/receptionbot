@@ -21,4 +21,29 @@ export const sessionRepository = {
       data,
     });
   },
+
+  async findAll(limit = 100) {
+    return prisma.session.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { _count: { select: { messages: true } } },
+    });
+  },
+
+  async findWhatsAppSessionByPhone(phone: string) {
+    return prisma.session.findFirst({
+      where: {
+        channel: 'whatsapp',
+        metadata: {
+          path: ['phone'],
+          equals: phone,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  },
+
+  async countAll() {
+    return prisma.session.count();
+  },
 };

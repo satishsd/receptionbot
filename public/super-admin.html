@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReceptionBot — Super Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #4338ca;
+      --primary-light: #e0e7ff;
+      --success: #10b981;
+      --danger: #ef4444;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --bg: #f9fafb;
+      --card: #ffffff;
+      --radius: 8px;
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+    /* ─── Login ─── */
+    #login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 40px; width: 100%; max-width: 380px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .login-card h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .login-card p.subtitle { color: var(--text-muted); margin-bottom: 28px; font-size: 13px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-weight: 500; margin-bottom: 6px; font-size: 13px; }
+    .form-group input, .form-group select { width: 100%; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; font-size: 14px; outline: none; transition: border-color 0.2s; background: #fff; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
+    .btn-primary { width: 100%; background: var(--primary); color: #fff; border: none; border-radius: var(--radius); padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-top: 4px; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-primary:disabled { background: #c7d2fe; cursor: not-allowed; }
+    .error-msg { color: var(--danger); font-size: 13px; margin-top: 12px; display: none; }
+
+    /* ─── Layout ─── */
+    #dashboard { display: none; }
+    .sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: #1e1b4b; color: #c7d2fe; display: flex; flex-direction: column; z-index: 10; }
+    .sidebar-brand { padding: 20px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .sidebar-brand h2 { font-size: 16px; font-weight: 700; color: #fff; }
+    .sidebar-brand p { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+    .sidebar-nav { flex: 1; padding: 12px 0; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; font-size: 13px; font-weight: 500; color: #c7d2fe; border: none; background: none; width: 100%; text-align: left; transition: background 0.15s; }
+    .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-item.active { background: rgba(255,255,255,0.1); color: #fff; }
+    .nav-item .icon { font-size: 16px; }
+    .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .btn-logout { background: rgba(255,255,255,0.08); color: #c7d2fe; border: none; border-radius: var(--radius); padding: 8px 14px; font-size: 12px; cursor: pointer; width: 100%; transition: background 0.15s; }
+    .btn-logout:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .main-content { margin-left: 220px; padding: 24px; min-height: 100vh; }
+
+    /* ─── Page ─── */
+    .page { display: none; }
+    .page.active { display: block; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .page-header h1 { font-size: 20px; font-weight: 700; }
+    .page-header p { color: var(--text-muted); font-size: 13px; margin-top: 2px; }
+
+    /* ─── Stats ─── */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .stat-card .stat-label { font-size: 12px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-card .stat-value { font-size: 28px; font-weight: 700; margin-top: 6px; color: var(--primary); }
+
+    /* ─── Card / Table ─── */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-header h3 { font-size: 15px; font-weight: 600; }
+    .btn-add { background: var(--primary); color: #fff; border: none; border-radius: var(--radius); padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .btn-add:hover { background: var(--primary-dark); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 10px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); background: var(--bg); border-bottom: 1px solid var(--border); }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+    .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: var(--text-muted); }
+    .empty-state { text-align: center; padding: 48px 16px; color: var(--text-muted); }
+    .empty-state .emoji { font-size: 36px; margin-bottom: 12px; }
+    .loading { text-align: center; padding: 32px; color: var(--text-muted); font-size: 13px; }
+    .btn-danger-sm { background: none; border: 1px solid #fca5a5; color: var(--danger); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+    .btn-danger-sm:hover { background: #fee2e2; }
+    .refresh-btn { background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 12px; font-size: 12px; cursor: pointer; color: var(--text-muted); transition: all 0.15s; }
+    .refresh-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ─── Modal ─── */
+    #modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+    #modal-overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 12px; width: 90%; max-width: 480px; overflow: hidden; }
+    .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 15px; }
+    .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); line-height: 1; }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-secondary:hover { border-color: #9ca3af; }
+    .modal-footer .btn-primary { width: auto; margin-top: 0; padding: 9px 22px; }
+    .hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN ═══════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>🛡️ Super Admin</h1>
+    <p class="subtitle">ReceptionBot — Agent Management</p>
+    <div class="form-group">
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="admin" autocomplete="username" />
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">Sign In</button>
+    <p class="error-msg" id="login-error"></p>
+  </div>
+</div>
+
+<!-- ═══════════════ DASHBOARD ═══════════════ -->
+<div id="dashboard">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2>ReceptionBot</h2>
+      <p>Super Admin Panel</p>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="showPage('agents')" id="nav-agents">
+        <span class="icon">🤖</span> Agents
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="doLogout()">Sign Out</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <!-- Agents page -->
+    <div class="page active" id="page-agents">
+      <div class="page-header">
+        <div>
+          <h1>Agents</h1>
+          <p>Manage WhatsApp real-estate agents connected to ReceptionBot</p>
+        </div>
+        <button class="refresh-btn" onclick="loadAgents()">↻ Refresh</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Agents</div>
+          <div class="stat-value" id="stat-total-agents">–</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>All Agents</h3>
+          <button class="btn-add" onclick="openAddModal()">+ Add Agent</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>WhatsApp Phone Number ID</th>
+                <th>Meta Access Token</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="agents-tbody">
+              <tr><td colspan="5"><div class="loading">Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════ ADD AGENT MODAL ═══════════════ -->
+<div id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      Add New Agent
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <form id="add-form" onsubmit="submitAddAgent(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="f-name">Agent Name *</label>
+          <input type="text" id="f-name" placeholder="e.g. John Doe" required />
+        </div>
+        <div class="form-group">
+          <label for="f-wpid">WhatsApp Phone Number ID</label>
+          <input type="text" id="f-wpid" placeholder="From Meta App Dashboard" />
+          <p class="hint">Found in Meta Developer Console → WhatsApp → API Setup</p>
+        </div>
+        <div class="form-group">
+          <label for="f-token">Meta Access Token</label>
+          <input type="password" id="f-token" placeholder="Agent's permanent access token" />
+        </div>
+        <div class="form-group">
+          <label for="f-password">Portal Password *</label>
+          <input type="password" id="f-password" placeholder="Min 8 characters" required minlength="8" />
+          <p class="hint">The agent will use this to log in to their portal</p>
+        </div>
+        <p class="error-msg" id="modal-error"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn-primary" id="add-btn">Create Agent</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let token = localStorage.getItem('sa_token');
+
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+    if (token) showDashboard();
+  });
+
+  async function doLogin() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+    const errEl = document.getElementById('login-error');
+    const btn = document.getElementById('login-btn');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    try {
+      const r = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Login failed');
+      token = data.token;
+      localStorage.setItem('sa_token', token);
+      showDashboard();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function showDashboard() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadAgents();
+  }
+
+  function doLogout() {
+    localStorage.removeItem('sa_token');
+    token = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('dashboard').style.display = 'none';
+  }
+
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    document.getElementById('nav-' + name).classList.add('active');
+  }
+
+  async function api(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token } };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(path, opts);
+    if (r.status === 401) { doLogout(); return null; }
+    return r.json();
+  }
+
+  async function loadAgents() {
+    const tbody = document.getElementById('agents-tbody');
+    tbody.innerHTML = '<tr><td colspan="5"><div class="loading">Loading…</div></td></tr>';
+    const data = await api('GET', '/api/admin/agents');
+    if (!data) return;
+    document.getElementById('stat-total-agents').textContent = data.agents.length;
+    if (!data.agents.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="emoji">🤖</div><p>No agents yet. Click "+ Add Agent" to create one.</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.agents.map(a => `
+      <tr>
+        <td><strong>${esc(a.name)}</strong></td>
+        <td class="mono">${esc(a.whatsappPhoneNumberId || '–')}</td>
+        <td class="mono">${a.metaAccessToken ? '••••' + esc(a.metaAccessToken.slice(-4)) : '–'}</td>
+        <td>${new Date(a.createdAt).toLocaleDateString()}</td>
+        <td><button class="btn-danger-sm" onclick="deleteAgent(${JSON.stringify(a.id)}, ${JSON.stringify(a.name)})">Delete</button></td>
+      </tr>
+    `).join('');
+  }
+
+  async function deleteAgent(id, name) {
+    if (!confirm('Delete agent "' + name + '"?\nThis will permanently remove all their properties and leads.')) return;
+    await api('DELETE', '/api/admin/agents/' + id);
+    loadAgents();
+  }
+
+  function openAddModal() {
+    document.getElementById('modal-overlay').classList.add('open');
+    document.getElementById('modal-error').style.display = 'none';
+    document.getElementById('add-form').reset();
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  }
+
+  async function submitAddAgent(e) {
+    e.preventDefault();
+    const btn = document.getElementById('add-btn');
+    const errEl = document.getElementById('modal-error');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    try {
+      const r = await fetch('/api/admin/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({
+          name: document.getElementById('f-name').value.trim(),
+          whatsappPhoneNumberId: document.getElementById('f-wpid').value.trim() || undefined,
+          metaAccessToken: document.getElementById('f-token').value.trim() || undefined,
+          password: document.getElementById('f-password').value,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Failed to create agent');
+      closeModal();
+      loadAgents();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function esc(str) {
+    return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+</script>
+</body>
+</html>
